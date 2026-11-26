@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { ui, Lang } from '../lib/i18n'
 
-type Story = { id: string; title: string; excerpt: string; cat: number; time: string; breaking?: boolean }
+type Story = { img?: string; id: string; title: string; excerpt: string; cat: number; time: string; breaking?: boolean }
 
 const L = {
   en: { date: 'en-GB', popular: 'Popular Now', editor: "Editor's Choice", video: 'Video News', sponsored: 'Sponsored', adTitle: 'Advertise with WALKIYA TV', adText: 'Reach thousands of Hausa and English readers every day.', adBtn: 'Contact Advertising', follow: 'Follow us', links: ['About Us','Contact Us','Advertise With Us','Privacy Policy','Terms and Conditions'], sections: 'Sections', company: 'Company', preview: 'Preview content for demonstration', ago: 'ago', watch: 'Watch', about: 'Independent digital journalism in Hausa and English.' },
@@ -34,13 +34,14 @@ const demo: Record<Lang, [number, string, string][]> = {
   ]
 }
 const times = ['2h', '3h', '5h', '6h', '8h', '10h', '12h', '1d']
-const grads = ['#16346f,#0a1a3a', '#0f5132,#0a2a1c', '#7a3e00,#2d1700', '#6b1d5c,#2a0a24', '#0b5c78,#06293a', '#4a3a9a,#1a1440', '#7a1020,#2a060b', '#1f4e79,#0a1a3a']
+const grads = ['#2b5cb8,#0f2552', '#0f5132,#0a2a1c', '#7a3e00,#2d1700', '#6b1d5c,#2a0a24', '#0b5c78,#06293a', '#4a3a9a,#1a1440', '#7a1020,#2a060b', '#1f4e79,#0a1a3a']
 
-function Cover({ cat, className = '', play = false }: { cat: number; className?: string; play?: boolean }) {
+function Cover({ cat, className = '', play = false, img }: { cat: number; className?: string; play?: boolean; img?: string }) {
   const g = grads[cat % 8].split(',')
   return <div className={`relative overflow-hidden ${className}`} style={{ background: `linear-gradient(135deg, ${g[0]}, ${g[1]})` }}>
-    <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10" />
-    <div className="absolute -bottom-12 left-6 h-32 w-32 rounded-full bg-white/5" />
+    {img && <img src={img} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />}
+    {!img && <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10" />}
+    {!img && <div className="absolute -bottom-12 left-6 h-32 w-32 rounded-full bg-white/5" />}
     {play && <div className="absolute inset-0 grid place-items-center"><div className="grid h-14 w-14 place-items-center rounded-full bg-white/90 shadow-lg"><svg width="22" height="22" viewBox="0 0 24 24" fill="#0a1a3a"><path d="M8 5v14l11-7z" /></svg></div></div>}
   </div>
 }
@@ -63,13 +64,13 @@ export default function Home() {
       setStories(demo[lang].map(([cat, title, excerpt], i) => ({ id: 'd' + i, cat, title, excerpt, time: `${times[i]} ${x.ago}`, breaking: i === 0 })))
     }
     if (!supabase) return fallback()
-    supabase.from('published_stories').select('id,title,excerpt,is_breaking,published_at').eq('lang', lang)
+    supabase.from('published_stories').select('id,title,excerpt,is_breaking,published_at,featured_image_url').eq('lang', lang)
       .order('published_at', { ascending: false }).limit(20)
       .then(({ data, error }) => {
         if (error) console.error(error)
         if (error || !data || data.length === 0) return fallback()
         setIsDemo(false)
-        setStories(data.map((s: any, i: number) => ({ id: s.id, title: s.title, excerpt: s.excerpt ?? '', cat: i % 8, breaking: s.is_breaking,
+        setStories(data.map((s: any, i: number) => ({ id: s.id, title: s.title, img: s.featured_image_url ?? undefined, excerpt: s.excerpt ?? '', cat: i % 8, breaking: s.is_breaking,
           time: new Date(s.published_at).toLocaleDateString('en-GB') })))
       })
   }, [lang])
@@ -108,8 +109,8 @@ export default function Home() {
     <main className="mx-auto max-w-6xl px-4 py-8">
       <section className="grid gap-6 lg:grid-cols-3">
         <article className="group relative overflow-hidden rounded-xl shadow-md lg:col-span-2">
-          <Cover cat={lead.cat} className="h-80 md:h-[26rem]" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+          <Cover img={lead.img} cat={lead.cat} className="h-80 md:h-[26rem]" />
+          <div className="absolute inset-0 bg-gradient-to-t from-navy-900/90 via-navy-900/20 to-transparent" />
           <div className="absolute bottom-0 p-5 text-white md:p-8">
             <Tag red>{t.cats[lead.cat]}</Tag>
             <h1 className="mt-3 font-serif text-2xl font-bold leading-tight md:text-4xl">{lead.title}</h1>
@@ -132,7 +133,7 @@ export default function Home() {
         <Heading>{x.popular}</Heading>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {popular.map(s => <article key={s.id} className="overflow-hidden rounded-xl bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-            <Cover cat={s.cat} className="h-36" />
+            <Cover img={s.img} cat={s.cat} className="h-36" />
             <div className="p-4"><Tag>{t.cats[s.cat]}</Tag>
               <h3 className="mt-2 font-serif text-base font-bold leading-snug">{s.title}</h3>
               <p className="mt-1 line-clamp-2 text-sm text-slate-600">{s.excerpt}</p>
@@ -151,13 +152,13 @@ export default function Home() {
         <div className="lg:col-span-2">
           <Heading>{x.editor}</Heading>
           <div className="grid gap-5 sm:grid-cols-3">
-            {editor.map(s => <article key={s.id}><Cover cat={s.cat} className="h-32 rounded-lg" />
+            {editor.map(s => <article key={s.id}><Cover img={s.img} cat={s.cat} className="h-32 rounded-lg" />
               <h3 className="mt-3 font-serif text-[15px] font-bold leading-snug">{s.title}</h3><div className="mt-1 text-xs text-slate-500">{s.time}</div></article>)}
           </div>
         </div>
         <div>
           <Heading>{x.video}</Heading>
-          <Cover cat={vid.cat} play className="h-40 rounded-lg" />
+          <Cover img={vid.img} cat={vid.cat} play className="h-40 rounded-lg" />
           <h3 className="mt-3 font-serif text-[15px] font-bold leading-snug">{vid.title}</h3>
           <div className="mt-1 text-xs text-slate-500">{x.watch} · {vid.time}</div>
         </div>
@@ -173,7 +174,7 @@ export default function Home() {
         <div><div className="mb-3 text-sm font-bold uppercase text-white">{x.sections}</div><ul className="space-y-1 text-sm">{t.cats.slice(0, 5).map(c => <li key={c}>{c}</li>)}</ul></div>
         <div><div className="mb-3 text-sm font-bold uppercase text-white">{x.company}</div><ul className="space-y-1 text-sm">{x.links.map(c => <li key={c}>{c}</li>)}</ul></div>
       </div>
-      <div className="border-t border-white/10 py-4 text-center text-xs">© 2026 WALKIYA TV · {t.tagline}</div>
+      <div className="border-t border-white/10 py-4 text-center text-xs">© 2026 WALKIYA TV · {t.tagline} · <Link to="/login" className="underline">Staff</Link></div>
     </footer>
   </div>
 }
