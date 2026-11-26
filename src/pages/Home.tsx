@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { ui, Lang } from '../lib/i18n'
+import { ui, Lang, catSlugs } from '../lib/i18n'
 
 type Story = { slug?: string; img?: string; id: string; title: string; excerpt: string; cat: number; time: string; breaking?: boolean }
 
@@ -11,7 +11,7 @@ const L = {
 }
 
 // Preview stories, shown only when the database has no published stories yet.
-const demo: Record<Lang, [number, string, string][]> = {
+export const demo: Record<Lang, [number, string, string][]> = {
   en: [
     [0, 'Senate committee opens hearing on proposed electoral reforms', 'Lawmakers weigh changes to voting procedures ahead of the next general election.'],
     [6, 'Security agencies strengthen cooperation along northern corridors', 'Officials say joint patrols have been expanded in several border communities.'],
@@ -36,7 +36,7 @@ const demo: Record<Lang, [number, string, string][]> = {
 const times = ['2h', '3h', '5h', '6h', '8h', '10h', '12h', '1d']
 const grads = ['#2b5cb8,#0f2552', '#0f5132,#0a2a1c', '#7a3e00,#2d1700', '#6b1d5c,#2a0a24', '#0b5c78,#06293a', '#4a3a9a,#1a1440', '#7a1020,#2a060b', '#1f4e79,#0a1a3a']
 
-function Cover({ cat, className = '', play = false, img }: { cat: number; className?: string; play?: boolean; img?: string }) {
+export function Cover({ cat, className = '', play = false, img }: { cat: number; className?: string; play?: boolean; img?: string }) {
   const g = grads[cat % 8].split(',')
   return <div className={`relative overflow-hidden ${className}`} style={{ background: `linear-gradient(135deg, ${g[0]}, ${g[1]})` }}>
     {img && <img src={img} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />}
@@ -69,13 +69,13 @@ export default function Home() {
       setStories(demo[lang].map(([cat, title, excerpt], i) => ({ id: 'd' + i, cat, title, excerpt, time: `${times[i]} ${x.ago}`, breaking: i === 0 })))
     }
     if (!supabase) return fallback()
-    supabase.from('published_stories').select('id,title,slug,excerpt,is_breaking,published_at,featured_image_url').eq('lang', lang)
+    supabase.from('published_stories').select('id,title,slug,excerpt,is_breaking,published_at,featured_image_url,category_slug').eq('lang', lang)
       .order('published_at', { ascending: false }).limit(20)
       .then(({ data, error }) => {
         if (error) console.error(error)
         if (error || !data || data.length === 0) return fallback()
         setIsDemo(false)
-        setStories(data.map((s: any, i: number) => ({ id: s.id, title: s.title, slug: s.slug, img: s.featured_image_url ?? undefined, excerpt: s.excerpt ?? '', cat: i % 8, breaking: s.is_breaking,
+        setStories(data.map((s: any, i: number) => ({ id: s.id, title: s.title, slug: s.slug, img: s.featured_image_url ?? undefined, excerpt: s.excerpt ?? '', cat: catSlugs.indexOf(s.category_slug) >= 0 ? catSlugs.indexOf(s.category_slug) : i % 8, breaking: s.is_breaking,
           time: new Date(s.published_at).toLocaleDateString('en-GB') })))
       })
   }, [lang])
@@ -99,8 +99,8 @@ export default function Home() {
     </header>
     <nav className="sticky top-0 z-20 bg-navy-800 shadow">
       <div className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-2 text-sm font-semibold text-white">
-        <span className="whitespace-nowrap border-b-2 border-breaking px-3 py-3">{lang === 'en' ? 'Home' : 'Gida'}</span>
-        {t.cats.map(c => <span key={c} className="whitespace-nowrap px-3 py-3 text-slate-200 hover:text-white">{c}</span>)}
+        <Link to={`/${lang}`} className="whitespace-nowrap border-b-2 border-breaking px-3 py-3">{lang === 'en' ? 'Home' : 'Gida'}</Link>
+        {t.cats.map((c, i) => <Link key={c} to={`/${lang}/category/${catSlugs[i]}`} className="whitespace-nowrap px-3 py-3 text-slate-200 hover:text-white">{c}</Link>)}
         <svg className="ml-auto shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></svg>
       </div>
     </nav>
