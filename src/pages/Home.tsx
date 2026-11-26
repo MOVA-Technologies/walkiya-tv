@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { ui, Lang } from '../lib/i18n'
 
-type Story = { img?: string; id: string; title: string; excerpt: string; cat: number; time: string; breaking?: boolean }
+type Story = { slug?: string; img?: string; id: string; title: string; excerpt: string; cat: number; time: string; breaking?: boolean }
 
 const L = {
   en: { date: 'en-GB', popular: 'Popular Now', editor: "Editor's Choice", video: 'Video News', sponsored: 'Sponsored', adTitle: 'Advertise with WALKIYA TV', adText: 'Reach thousands of Hausa and English readers every day.', adBtn: 'Contact Advertising', follow: 'Follow us', links: ['About Us','Contact Us','Advertise With Us','Privacy Policy','Terms and Conditions'], sections: 'Sections', company: 'Company', preview: 'Preview content for demonstration', ago: 'ago', watch: 'Watch', about: 'Independent digital journalism in Hausa and English.' },
@@ -50,6 +50,11 @@ const Tag = ({ children, red = false }: { children: React.ReactNode; red?: boole
 const Heading = ({ children }: { children: React.ReactNode }) =>
   <h2 className="mb-5 flex items-center gap-3 font-serif text-2xl font-bold text-navy-900"><span className="h-6 w-1.5 rounded bg-breaking" />{children}</h2>
 
+function T({ s, lang, stretch = false }: { s: Story; lang: Lang; stretch?: boolean }) {
+  if (!s.slug) return <>{s.title}</>
+  return <Link to={`/${lang}/${s.slug}`} className={`hover:underline ${stretch ? 'after:absolute after:inset-0 after:content-[""]' : ''}`}>{s.title}</Link>
+}
+
 export default function Home() {
   const { lang: p } = useParams()
   const lang: Lang = p === 'ha' ? 'ha' : 'en'
@@ -64,13 +69,13 @@ export default function Home() {
       setStories(demo[lang].map(([cat, title, excerpt], i) => ({ id: 'd' + i, cat, title, excerpt, time: `${times[i]} ${x.ago}`, breaking: i === 0 })))
     }
     if (!supabase) return fallback()
-    supabase.from('published_stories').select('id,title,excerpt,is_breaking,published_at,featured_image_url').eq('lang', lang)
+    supabase.from('published_stories').select('id,title,slug,excerpt,is_breaking,published_at,featured_image_url').eq('lang', lang)
       .order('published_at', { ascending: false }).limit(20)
       .then(({ data, error }) => {
         if (error) console.error(error)
         if (error || !data || data.length === 0) return fallback()
         setIsDemo(false)
-        setStories(data.map((s: any, i: number) => ({ id: s.id, title: s.title, img: s.featured_image_url ?? undefined, excerpt: s.excerpt ?? '', cat: i % 8, breaking: s.is_breaking,
+        setStories(data.map((s: any, i: number) => ({ id: s.id, title: s.title, slug: s.slug, img: s.featured_image_url ?? undefined, excerpt: s.excerpt ?? '', cat: i % 8, breaking: s.is_breaking,
           time: new Date(s.published_at).toLocaleDateString('en-GB') })))
       })
   }, [lang])
@@ -113,7 +118,7 @@ export default function Home() {
           <div className="absolute inset-0 bg-gradient-to-t from-navy-900/90 via-navy-900/20 to-transparent" />
           <div className="absolute bottom-0 p-5 text-white md:p-8">
             <Tag red>{t.cats[lead.cat]}</Tag>
-            <h1 className="mt-3 font-serif text-2xl font-bold leading-tight md:text-4xl">{lead.title}</h1>
+            <h1 className="mt-3 font-serif text-2xl font-bold leading-tight md:text-4xl"><T s={lead} lang={lang} stretch /></h1>
             <p className="mt-2 hidden max-w-xl text-sm text-slate-200 md:block">{lead.excerpt}</p>
             <div className="mt-3 text-xs text-slate-300">{lead.time}</div>
           </div>
@@ -123,7 +128,7 @@ export default function Home() {
           <ul className="divide-y">
             {side.map((s, i) => <li key={s.id} className="flex gap-3 py-3">
               <span className="font-serif text-2xl font-black text-breaking">{i + 1}</span>
-              <div><h3 className="font-serif text-[15px] font-bold leading-snug">{s.title}</h3><div className="mt-1 text-xs text-slate-500">{t.cats[s.cat]} · {s.time}</div></div>
+              <div><h3 className="font-serif text-[15px] font-bold leading-snug"><T s={s} lang={lang} /></h3><div className="mt-1 text-xs text-slate-500">{t.cats[s.cat]} · {s.time}</div></div>
             </li>)}
           </ul>
         </aside>
@@ -132,10 +137,10 @@ export default function Home() {
       <section className="mt-12">
         <Heading>{x.popular}</Heading>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {popular.map(s => <article key={s.id} className="overflow-hidden rounded-xl bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+          {popular.map(s => <article key={s.id} className="relative overflow-hidden rounded-xl bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
             <Cover img={s.img} cat={s.cat} className="h-36" />
             <div className="p-4"><Tag>{t.cats[s.cat]}</Tag>
-              <h3 className="mt-2 font-serif text-base font-bold leading-snug">{s.title}</h3>
+              <h3 className="mt-2 font-serif text-base font-bold leading-snug"><T s={s} lang={lang} stretch /></h3>
               <p className="mt-1 line-clamp-2 text-sm text-slate-600">{s.excerpt}</p>
               <div className="mt-2 text-xs text-slate-400">{s.time}</div></div>
           </article>)}
@@ -153,13 +158,13 @@ export default function Home() {
           <Heading>{x.editor}</Heading>
           <div className="grid gap-5 sm:grid-cols-3">
             {editor.map(s => <article key={s.id}><Cover img={s.img} cat={s.cat} className="h-32 rounded-lg" />
-              <h3 className="mt-3 font-serif text-[15px] font-bold leading-snug">{s.title}</h3><div className="mt-1 text-xs text-slate-500">{s.time}</div></article>)}
+              <h3 className="mt-3 font-serif text-[15px] font-bold leading-snug"><T s={s} lang={lang} /></h3><div className="mt-1 text-xs text-slate-500">{s.time}</div></article>)}
           </div>
         </div>
         <div>
           <Heading>{x.video}</Heading>
           <Cover img={vid.img} cat={vid.cat} play className="h-40 rounded-lg" />
-          <h3 className="mt-3 font-serif text-[15px] font-bold leading-snug">{vid.title}</h3>
+          <h3 className="mt-3 font-serif text-[15px] font-bold leading-snug"><T s={vid} lang={lang} /></h3>
           <div className="mt-1 text-xs text-slate-500">{x.watch} · {vid.time}</div>
         </div>
       </section>
